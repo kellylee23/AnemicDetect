@@ -1,10 +1,12 @@
 import React, { useRef, useState, useCallback, useEffect } from "react";
 import Webcam from "react-webcam";
 import styled from "styled-components";
+import axios from "axios";
 import { BsFillCameraFill } from "react-icons/bs";
 import { GrPowerCycle } from "react-icons/gr";
+import { useNavigate } from "react-router-dom";
 
-// 전체 화면 컨테이너
+// 스타일 컴포넌트 생략 없이 전체 포함
 const Container = styled.div`
   display: flex;
   width: 391px;
@@ -16,7 +18,7 @@ const Container = styled.div`
   padding-top: 100px;
   padding-bottom: 80px;
   overflow-y: auto;
-  box-sizing: border-box; /* padding 포함한 높이 계산 */
+  box-sizing: border-box;
 `;
 
 const HeaderBox = styled.div`
@@ -37,7 +39,6 @@ const FooterBox = styled.div`
   background-color: rgb(0, 45, 86);
 `;
 
-// 상단 텍스트
 const Title = styled.div`
   position: absolute;
   width: 68px;
@@ -50,7 +51,6 @@ const Title = styled.div`
   color: #ffffff;
 `;
 
-// 캡처 영역 박스
 const CaptureBox = styled.div`
   display: flex;
   flex-direction: column;
@@ -64,14 +64,12 @@ const CaptureBox = styled.div`
   overflow: hidden;
 `;
 
-// 카메라 컴포넌트 감싸는 div
 const StyledWebcam = styled(Webcam)`
   width: 100%;
   height: 100%;
   object-fit: cover;
 `;
 
-// 카메라 아이콘
 const CameraIcon = styled(BsFillCameraFill)`
   position: absolute;
   width: 45px;
@@ -83,13 +81,12 @@ const CameraIcon = styled(BsFillCameraFill)`
   cursor: pointer;
 `;
 
-// 하단 캡쳐 버튼
 const SideCircle = styled.div`
   position: absolute;
   width: 65px;
   height: 65px;
   left: 260px;
-  top: 650px;
+  top: 630px;
   background: rgba(218, 218, 211, 0.3);
   border-radius: 50%;
 `;
@@ -99,7 +96,7 @@ const BottomCircleOuter = styled.div`
   width: 80px;
   height: 80px;
   left: 150px;
-  top: 643px;
+  top: 623px;
   background: rgba(0, 0, 0, 0.3);
   border-radius: 50%;
 `;
@@ -109,7 +106,7 @@ const BottomCircleInner = styled.div`
   width: 65px;
   height: 65px;
   left: 157px;
-  top: 650px;
+  top: 630px;
   background: rgba(218, 218, 211, 0.3);
   border-radius: 50%;
 `;
@@ -159,70 +156,34 @@ const PermissionText = styled.div`
   text-align: center;
 `;
 
-const GuideOverlay = styled.div`
+const ResultBox = styled.div`
   position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
-
-  &::before {
-    content: "";
-    position: absolute;
-    width: 60%;
-    height: 60%;
-    top: 20%;
-    left: 20%;
-    border: 2px dashed #00ff00; // 초록색 점선
-    border-radius: ${({ $isActive }) => ($isActive ? "10px" : "100px")};
-    box-sizing: border-box;
-  }
-`;
-const TypeButtonWrapper = styled.div`
-  position: absolute;
-  margin-top: 500px;
-  display: flex;
-  flex-direction: row;
-  gap: 30px;
-  justify-content: center;
-`;
-
-const TypeButton = styled.button`
-  width: 70px;
-  height: 32px;
-  border-radius: 20px;
+  width: 120px;
+  height: 40px;
+  left: 235px;
+  top: 710px;
+  background-color: white;
+  color: #000;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #ffffff;
-  font-family: "noto sans", sans-serif;
-  font-size: 16px;
-  font-weight: ${({ $isActive }) => ($isActive ? 600 : 400)};
-  background-color: ${({ $isActive }) =>
-    $isActive ? "rgba(218, 218, 211, 0.6)" : "transparent"};
-  border: none;
+  border-radius: 20px;
+  font-size: 14px;
   cursor: pointer;
-  transition: 0.3s;
 
   &:hover {
-    background-color: rgba(218, 218, 211, 0.3);
+    background-color: rgba(0, 45, 86, 0.8);
   }
 `;
-// const NavButton = styled.button`
-//   position: absolute;
-//   width: 80px;
-//   height: 30px;
-//   margin-top: 625px;
-//   margin-left: 250px;
-//   background-color: orange;
-// `;
-function Camera() {
+
+function CameraNail() {
   const webcamRef = useRef(null);
   const [imgSrc, setImgSrc] = useState(null);
   const [hasPermission, setHasPermission] = useState(null);
   const [facingMode, setFacingMode] = useState("environment");
-  const [activeType, setActiveType] = useState("결막");
+  const [croppedImages, setCroppedImages] = useState([]);
+
+  const navigate = useNavigate();
 
   useEffect(() => {
     navigator.mediaDevices
@@ -233,8 +194,37 @@ function Camera() {
 
   const capture = useCallback(() => {
     const imageSrc = webcamRef.current?.getScreenshot();
-    setImgSrc(imageSrc);
+    if (imageSrc) {
+      setImgSrc(imageSrc);
+      uploadToBackend(imageSrc);
+    }
   }, [webcamRef]);
+
+  const uploadToBackend = async (base64Image) => {
+    try {
+      const blob = await (await fetch(base64Image)).blob();
+      const file = new File([blob], "captured.jpg", { type: "image/jpeg" });
+      const formData = new FormData();
+      formData.append("image", file);
+
+      const response = await axios.post(
+        `${process.env.REACT_APP_API_URL}nail-preprocess/`,
+        formData,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+        }
+      );
+
+      console.log("전처리 결과:", response.data);
+      setCroppedImages(response.data.cropped_images);
+      // 예: response.data.cropped_images => [url1, url2, ...]
+      // 필요한 경우 상태로 저장해서 결과 보기 버튼 등에서 사용
+    } catch (error) {
+      console.error("이미지 업로드 오류:", error);
+    }
+  };
 
   const toggleFacingMode = () => {
     setFacingMode((prev) => (prev === "environment" ? "user" : "environment"));
@@ -268,26 +258,11 @@ function Camera() {
               screenshotFormat="image/jpeg"
               videoConstraints={{ facingMode: { exact: facingMode } }}
             />
-            <GuideOverlay $isActive={activeType === "결막"} />
           </>
         )}
       </CaptureBox>
 
       <FooterBox />
-      <TypeButtonWrapper>
-        <TypeButton
-          $isActive={activeType === "결막"}
-          onClick={() => setActiveType("결막")}
-        >
-          결막사진
-        </TypeButton>
-        <TypeButton
-          $isActive={activeType === "눈"}
-          onClick={() => setActiveType("눈")}
-        >
-          눈사진
-        </TypeButton>
-      </TypeButtonWrapper>
       <BottomCircleOuter />
       <BottomCircleInner onClick={capture}>
         <CameraIcon />
@@ -295,9 +270,15 @@ function Camera() {
       <SideCircle>
         <Change onClick={toggleFacingMode} />
       </SideCircle>
-      {/* <NavButton>결과보기</NavButton> */}
+      <ResultBox
+        onClick={() => {
+          navigate("/capture", { state: { croppedImages } });
+        }}
+      >
+        결과보기
+      </ResultBox>
     </Container>
   );
 }
 
-export default Camera;
+export default CameraNail;

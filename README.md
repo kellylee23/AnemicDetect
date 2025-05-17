@@ -3,4 +3,4 @@
 
 1. npm start
 2. npx ngrok http 3000
-3. forwarding url로 모바일에서 열기기
+3. forwarding url로 모바일에서 열기

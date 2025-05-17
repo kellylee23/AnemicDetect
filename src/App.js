@@ -3,7 +3,10 @@ import GlobalStyle from "./styles/Globalstyles";
 import Navbar from "./components/Navbar";
 import React from "react";
 
-import Camera from "./pages/Camera";
+import Main from "./pages/Main";
+import CameraBoth from "./pages/CameraBoth";
+import CameraEye from "./pages/CameraEye";
+import CameraNail from "./pages/CameraNail";
 import Capture from "./pages/Capture";
 import Result from "./pages/Result";
 
@@ -17,8 +20,14 @@ function App() {
       <div className="app-container">
         <Navbar />
         <Routes>
-          {/* 메인페이지 - 카메라 */}
-          <Route path="/" element={<Camera />} />
+          {/* 메인페이지 */}
+          <Route path="/" element={<Main />} />
+          {/* 카메라-눈 */}
+          <Route path="/camera/eye" element={<CameraEye />} />
+          {/* 카메라-손톱 */}
+          <Route path="/camera/nail" element={<CameraNail />} />
+          {/* 카메라-눈+손톱 */}
+          <Route path="/camera/both" element={<CameraBoth />} />
 
           {/* 캡쳐화면 */}
           <Route path="/capture" element={<Capture />} />
